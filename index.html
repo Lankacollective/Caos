@@ -6,9 +6,7 @@
 <title>CAOS // LANKA OS</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
 /* 🎨 PALETA ULTRA PREMIUM & BRUTALISTA */
@@ -429,10 +427,11 @@ body.deep-work .ct { justify-content: center; align-items: center; }
 
 <script>
 // ==== LÓGICA CORE V12 (LANKA DIRECTOR EDITION) - BULLETPROOF ====
-const firebaseConfig = { apiKey: "AIzaSyC2XPAlkMHmYIuBrOAYR5ujliRcZKZPxhk", authDomain: "caos-c38c3.firebaseapp.com", projectId: "caos-c38c3" };
-let db = null; 
-firebase.initializeApp(firebaseConfig); 
-db = firebase.firestore();
+const _sb = window.supabase.createClient(
+  'https://tmypjnoapglzdidrurqq.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRteXBqbm9hcGdsemRpZHJ1cnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwOTE0OTQsImV4cCI6MjA5NzY2NzQ5NH0.bwIUjL8kljnaRNCVBG993lysWc0HmPk5Kbw5INIqoi0'
+);
+var currentUser = null;
 
 var S={projects:[],tasks:[],team:[],view:'dashboard',filt:'todas',lay:'kanban',proj:null,editId:null,editPId:null,tmpSubs:[],tmpAtts:[],parsed:[],timers:{},activeT:null,activeTs:null,tInt:null,tLog:[], selMode:false, selected:[], sortCol:'date', sortDir:1, habits:{}, habits_list:[], focus:{date:'',text:''}};
 var syncFlag = false; var unsub = null; window.curCalDate = new Date();
@@ -448,37 +447,55 @@ function boot(){
 
   if(S.activeT){ if(S.activeTs){ var dtm=Math.floor((Date.now()-S.activeTs)/1000); if(dtm>0) S.timers[S.activeT]=(S.timers[S.activeT]||0)+dtm; } S.activeTs=Date.now(); S.tInt=setInterval(tickT,1000); }
   
-  if(db) {
-    if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Syncing...';
-    firebase.auth().onAuthStateChanged(function(user) { if (user) { document.getElementById('mo-auth').classList.remove('open'); startSync(); } else { document.getElementById('mo-auth').classList.add('open'); render(); } });
-  } else { persistLocal(); render(); }
+  if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Syncing...';
+  _sb.auth.onAuthStateChange(function(event, session) {
+    currentUser = session ? session.user : null;
+    if (session) { document.getElementById('mo-auth').classList.remove('open'); startSync(); }
+    else { document.getElementById('mo-auth').classList.add('open'); render(); }
+  });
   if('Notification' in window && Notification.permission === 'granted'){ setInterval(triggerNotifications, 60000); }
 }
 
 function startSync() {
-  if(unsub) unsub();
-  unsub = db.collection('workspaces').doc('lanka_main').onSnapshot(function(doc) {
-    if(doc.exists) { 
-      var d = doc.data(); 
-      var locT = S.activeT, locTs = S.activeTs, locTimers = S.timers || {}; 
-      var alerts = (S.tasks||[]).filter(t=>t.alerted).map(t=>t.id); 
-      S = Object.assign({}, S, d); 
-      S.tasks.forEach(t => { if(alerts.includes(t.id)) t.alerted = true; }); 
-      if(locT) { S.activeT = locT; S.activeTs = locTs; S.timers = Object.assign({}, d.timers || {}, locTimers); } 
-      S.tLog = (S.tLog || []).slice(-100); 
-      if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Online'; 
-      render(); 
-    } else persist();
-  }, function(error) { if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Offline'; });
+  if(unsub) { unsub(); unsub = null; }
+
+  function applyRemote(d) {
+    var locT = S.activeT, locTs = S.activeTs, locTimers = S.timers || {};
+    var alerts = (S.tasks||[]).filter(t=>t.alerted).map(t=>t.id);
+    S = Object.assign({}, S, d);
+    S.tasks.forEach(t => { if(alerts.includes(t.id)) t.alerted = true; });
+    if(locT) { S.activeT = locT; S.activeTs = locTs; S.timers = Object.assign({}, d.timers || {}, locTimers); }
+    S.tLog = (S.tLog || []).slice(-100);
+    if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Online';
+    render();
+  }
+
+  _sb.from('workspaces').select('data').eq('id', 'lanka_main').single()
+    .then(function(res) {
+      if(res.data && res.data.data) { applyRemote(res.data.data); }
+      else if(res.error && res.error.code === 'PGRST116') { persist(); }
+      else if(res.error) { if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Offline'; }
+    });
+
+  var channel = _sb.channel('workspaces-rt')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workspaces', filter: 'id=eq.lanka_main' }, function(payload) {
+      if(payload.new && payload.new.data) applyRemote(payload.new.data);
+    })
+    .subscribe(function(status) {
+      if(status === 'SUBSCRIBED') { if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Online'; }
+      else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if(document.getElementById('cloud-status')) document.getElementById('cloud-status').innerText = 'Offline'; }
+    });
+
+  unsub = function() { _sb.removeChannel(channel); };
 }
 
 function importData(input){ var f=input.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(e){ try{ var d=JSON.parse(e.target.result); S=Object.assign({},S,d); persist(); render(); toast('Datos importados con éxito.'); }catch(err){ toast('Error: archivo inválido.'); } }; r.readAsText(f); input.value=''; }
 
 function checkNotifications(){ if(!('Notification' in window)) { toast('Navegador sin alertas.'); return; } Notification.requestPermission().then(function(p){ if(p === 'granted') { toast('¡Alertas activadas!'); triggerNotifications(); } else { toast('Denegado.'); } }); }
 function triggerNotifications(){ if(Notification.permission !== 'granted') return; var now = Date.now(); S.tasks.filter(t => t.st!=='listo' && t.date && t.alert).forEach(t => { if(t.alerted) return; var taskTime = new Date(t.date + 'T' + (t.time||'23:59') + ':00').getTime(); var alertMs = parseInt(t.alert) * 60 * 1000; var diff = taskTime - now; if(diff > 0 && diff <= alertMs) { new Notification('CAOS OS: ' + t.title, {body: (t.time ? 'A las ' + t.time : 'Vence pronto')}); t.alerted = true; persist(); } }); }
-function doLogin() { var e=document.getElementById('auth-email').value.trim(), p=document.getElementById('auth-pass').value; if(!e||!p){document.getElementById('auth-err').style.display='block'; return;} firebase.auth().signInWithEmailAndPassword(e, p).then(()=>toast('Login OK')).catch(()=>document.getElementById('auth-err').style.display='block'); }
-function doLogout() { if(db) firebase.auth().signOut().then(()=>{if(unsub)unsub();closeMo('mo-prf');toast('Sesión cerrada');}); }
-function persist(){ persistLocal(); if(db && !syncFlag && firebase.auth().currentUser) { syncFlag=true; db.collection('workspaces').doc('lanka_main').set(S).then(()=>syncFlag=false).catch(()=>syncFlag=false); } }
+function doLogin() { var e=document.getElementById('auth-email').value.trim(), p=document.getElementById('auth-pass').value; if(!e||!p){document.getElementById('auth-err').style.display='block'; return;} _sb.auth.signInWithPassword({email:e, password:p}).then(function(res){ if(res.error) document.getElementById('auth-err').style.display='block'; else toast('Login OK'); }).catch(()=>document.getElementById('auth-err').style.display='block'); }
+function doLogout() { _sb.auth.signOut().then(()=>{if(unsub)unsub();currentUser=null;closeMo('mo-prf');toast('Sesión cerrada');}); }
+function persist(){ persistLocal(); if(currentUser && !syncFlag) { syncFlag=true; var d=Object.assign({},S); delete d.tInt; _sb.from('workspaces').upsert({id:'lanka_main',data:d},{onConflict:'id'}).then(()=>syncFlag=false).catch(()=>syncFlag=false); } }
 function persistLocal(){try{localStorage.setItem('caos5',JSON.stringify(S));}catch(e){}}
 
 document.addEventListener('keydown', function(e) {
