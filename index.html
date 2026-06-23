@@ -348,6 +348,7 @@ body.deep-work .ct { justify-content: center; align-items: center; }
     <div class="bb-actions">
       <select class="bb-sel" id="bb-st" onchange="bAct('st', this.value)"><option value="">Cambiar Estado...</option><option value="inbox">Inbox</option><option value="pendiente">Pendiente</option><option value="proceso">En Proceso</option><option value="revision">En Revisión</option><option value="listo">Listo</option><option value="bloqueado">Bloqueado</option></select>
       <select class="bb-sel" id="bb-who" onchange="bAct('who', this.value)"><option value="">Asignar...</option></select>
+      <select class="bb-sel" id="bb-proj" onchange="bAct('proj', this.value)"><option value="">Asignar a proyecto...</option></select>
       <button class="bb-btn bb-del" onclick="bAct('del', '1')"><i class="fa-solid fa-trash"></i></button>
       <button class="bb-btn" onclick="clearSel()"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -510,7 +511,7 @@ function seedP(){ S.projects=[{id:'p1',name:'COETE',unit:'PROVISIONS',col:'#D4F0
 function seedT(){ S.tasks=[]; }
 
 function render(){renderSb();renderC();updBadges();}
-function renderSb(){ document.getElementById('proj-list').innerHTML=S.projects.map(p=>'<div class="pi" onclick="filtP(\''+p.id+'\')"><div class="pd" style="background:'+p.col+'"></div><span class="ni-txt">'+p.name+'</span></div>').join(''); var ps=document.getElementById('t-proj'); if(ps) ps.innerHTML='<option value="">— Sin proyecto —</option>'+S.projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join(''); var as=document.getElementById('t-who'); if(as) as.innerHTML='<option value="">— Sin asignar —</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name+'</option>').join(''); var bbw=document.getElementById('bb-who'); if(bbw) bbw.innerHTML='<option value="">Asignar...</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name.split(' ')[0]+'</option>').join(''); }
+function renderSb(){ document.getElementById('proj-list').innerHTML=S.projects.map(p=>'<div class="pi" onclick="filtP(\''+p.id+'\')"><div class="pd" style="background:'+p.col+'"></div><span class="ni-txt">'+p.name+'</span></div>').join(''); var ps=document.getElementById('t-proj'); if(ps) ps.innerHTML='<option value="">— Sin proyecto —</option>'+S.projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join(''); var as=document.getElementById('t-who'); if(as) as.innerHTML='<option value="">— Sin asignar —</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name+'</option>').join(''); var bbw=document.getElementById('bb-who'); if(bbw) bbw.innerHTML='<option value="">Asignar...</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name.split(' ')[0]+'</option>').join(''); var bbp=document.getElementById('bb-proj'); if(bbp) bbp.innerHTML='<option value="">Asignar a proyecto...</option>'+S.projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join(''); }
 function renderC(){ var c=document.getElementById('main-ct'); if(S.view==='dashboard') dashV(c); else if(S.view==='tasks') tasksV(c); else if(S.view==='calendar') calV(c); else if(S.view==='inbox') inboxV(c); else if(S.view==='timer') timerV(c); else if(S.view==='agenda') agendaV(c); else if(S.view==='roadmap') roadmapV(c); else if(S.view==='protocolo') protocoloV(c); }
 function updBadges(){ var ib=S.tasks.filter(t=>t.st==='inbox').length; var bi=document.getElementById('b-inbox');if(ib){bi.innerText=ib;bi.style.display='';}else bi.style.display='none'; document.getElementById('b-tasks').innerText=S.tasks.filter(t=>t.st!=='listo').length; }
 
@@ -663,9 +664,9 @@ function protocoloV(c) {
 
 function cardClick(e, id){ if(S.selMode){ e.stopPropagation(); var idx=S.selected.indexOf(id); if(idx>-1)S.selected.splice(idx,1); else S.selected.push(id); renderC(); updBatch(); } else openDp(id); }
 function togSelMode(){ S.selMode=!S.selMode; S.selected=[]; document.getElementById('btn-selmode').style.color=S.selMode?'var(--or)':''; renderC(); updBatch(); }
-function updBatch(){ var b=document.getElementById('batch-bar'); if(S.selected.length>0){ b.classList.add('show'); document.getElementById('bb-num').innerText=S.selected.length; } else { b.classList.remove('show'); document.getElementById('bb-st').value=''; document.getElementById('bb-who').value=''; } }
+function updBatch(){ var b=document.getElementById('batch-bar'); if(S.selected.length>0){ b.classList.add('show'); document.getElementById('bb-num').innerText=S.selected.length; } else { b.classList.remove('show'); document.getElementById('bb-st').value=''; document.getElementById('bb-who').value=''; document.getElementById('bb-proj').value=''; } }
 function clearSel(){ S.selected=[]; updBatch(); renderC(); }
-function bAct(type,val){ if(!val)return; if(type==='del'){if(!confirm('¿Eliminar?'))return; S.tasks=S.tasks.filter(t=>!S.selected.includes(t.id));} else if(type==='st') S.selected.forEach(id=>chgSt(id,val,true)); else if(type==='who') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.who=val;}); persist(); clearSel(); render(); toast('Lote actualizado.'); }
+function bAct(type,val){ if(!val)return; if(type==='del'){if(!confirm('¿Eliminar?'))return; S.tasks=S.tasks.filter(t=>!S.selected.includes(t.id));} else if(type==='st') S.selected.forEach(id=>chgSt(id,val,true)); else if(type==='who') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.who=val;}); else if(type==='proj') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.proj=val;}); persist(); clearSel(); render(); toast('Lote actualizado.'); }
 
 function trow(t){
   var proj=S.projects.find(p=>p.id===t.proj),mbr=S.team.find(m=>m.id===t.who); var today=new Date().toISOString().split('T')[0],ov=t.date&&t.date<today&&t.st!=='listo';

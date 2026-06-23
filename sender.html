@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAOS Sender</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #e8e8e8;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    overflow: hidden;
+  }
+  .header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    width: 32px; height: 32px;
+    background: #7c3aed;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+  .header span { font-size: 13px; color: #666; margin-top: 2px; display: block; }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+  .tab.active {
+    color: #a78bfa;
+    border-bottom: 2px solid #7c3aed;
+    background: #1e1a2e;
+  }
+  .tab:hover:not(.active) { color: #999; background: #222; }
+  .body { padding: 24px 28px; }
+  .field { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #888;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  input, select, textarea {
+    width: 100%;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #e8e8e8;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #7c3aed;
+  }
+  select option { background: #1a1a1a; }
+  textarea {
+    min-height: 160px;
+    resize: vertical;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:hover { background: #6d28d9; }
+  .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+  .status {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .status.ok { display: flex; background: #0d2b1a; border: 1px solid #166534; color: #4ade80; }
+  .status.err { display: flex; background: #2b0d0d; border: 1px solid #991b1b; color: #f87171; }
+  .status-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+  .status-body { flex: 1; }
+  .status-title { font-weight: 600; }
+  .status-msg { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+  .hint {
+    font-size: 12px;
+    color: #555;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="logo">⚡</div>
+    <div>
+      <h1>CAOS Sender</h1>
+      <span>Envía tareas a CAOS desde cualquier chat</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('form')">📝 Formulario</button>
+    <button class="tab" onclick="switchTab('json')">{ } JSON</button>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div id="panel-form" class="panel active body">
+    <div class="field">
+      <label>Título *</label>
+      <input id="f-title" type="text" placeholder="¿Qué hay que hacer?">
+    </div>
+    <div class="field">
+      <label>Descripción</label>
+      <input id="f-desc" type="text" placeholder="Detalle opcional">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Proyecto</label>
+        <input id="f-project" type="text" placeholder="Marketing, Lanka HQ…">
+      </div>
+      <div class="field">
+        <label>Asignado a</label>
+        <select id="f-assignee">
+          <option value="">Sin asignar</option>
+          <option value="Paola">Paola</option>
+          <option value="Mathias">Mathias</option>
+          <option value="Ambos">Ambos</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Fecha</label>
+        <input id="f-date" type="date">
+      </div>
+      <div class="field">
+        <label>Hora</label>
+        <input id="f-time" type="time">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Prioridad</label>
+        <select id="f-priority">
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Estado</label>
+        <select id="f-status">
+          <option value="inbox">Inbox</option>
+          <option value="todo">Todo</option>
+          <option value="doing">Doing</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notas</label>
+      <input id="f-notes" type="text" placeholder="Contexto, links, referencia…">
+    </div>
+    <button class="btn" id="btn-form" onclick="sendForm()">
+      <span class="spinner" id="spin-form"></span>
+      <span id="btn-form-label">Enviar a CAOS</span>
+    </button>
+    <div class="status" id="status-form">
+      <span class="status-icon"></span>
+      <div class="status-body">
+        <div class="status-title"></div>
+        <div class="status-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON -->
+  <div id="panel-json" class="panel body">
+    <div class="field">
+      <label>Pega el JSON de Claude</label>
+      <textarea id="j-input" placeholder='{
+  "title": "Nombre de la tarea",
+  "project": "Marketing",
+  "assignee": "Paola",
+  "date": "2026-06-25",
+  "priority": "alta"
+}'></textarea>
+      <p class="hint">Puedes pegar un objeto JSON individual o un array de tareas [ {...}, {...} ] para enviar varias a la vez.</p>
+    </div>
+    <button class="btn" id="btn-json" onclick="sendJSON()">
+      <span class="spinner" id="spin-json"></span>
+      <span id="btn-json-label">Enviar a CAOS</span>
+    </button>
+    <div class="status" id="status-json">
+      <span class="status-icon"></span>
+      <div class="status-body">
+        <div class="status-title"></div>
+        <div class="status-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://tmypjnoapglzdidrurqq.supabase.co/functions/v1/add-task';
+const KEY = 'caos_sk_lnk_7xK9mP2vQr3bN8dTw';
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'form' ? 0 : 1) === i));
+  document.getElementById('panel-form').classList.toggle('active', tab === 'form');
+  document.getElementById('panel-json').classList.toggle('active', tab === 'json');
+}
+
+async function post(payload) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': KEY },
+    body: JSON.stringify({ ...payload, source: payload.source || 'caos-sender' })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+function setStatus(id, type, title, msg) {
+  const el = document.getElementById('status-' + id);
+  el.className = 'status ' + type;
+  el.querySelector('.status-icon').textContent = type === 'ok' ? '✓' : '✗';
+  el.querySelector('.status-title').textContent = title;
+  el.querySelector('.status-msg').textContent = msg;
+}
+
+function setLoading(id, loading) {
+  document.getElementById('btn-' + id).disabled = loading;
+  document.getElementById('spin-' + id).style.display = loading ? 'block' : 'none';
+  document.getElementById('btn-' + id + '-label').textContent = loading ? 'Enviando…' : 'Enviar a CAOS';
+}
+
+async function sendForm() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { setStatus('form', 'err', 'Falta el título', 'El título es obligatorio.'); return; }
+  const payload = {
+    title,
+    description: document.getElementById('f-desc').value.trim(),
+    project:     document.getElementById('f-project').value.trim(),
+    assignee:    document.getElementById('f-assignee').value,
+    date:        document.getElementById('f-date').value,
+    time:        document.getElementById('f-time').value,
+    priority:    document.getElementById('f-priority').value,
+    status:      document.getElementById('f-status').value,
+    notes:       document.getElementById('f-notes').value.trim(),
+  };
+  setLoading('form', true);
+  document.getElementById('status-form').className = 'status';
+  try {
+    const data = await post(payload);
+    setStatus('form', 'ok', '¡Tarea enviada!', data.message || `"${title}" añadida a CAOS`);
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-notes').value = '';
+  } catch(e) {
+    setStatus('form', 'err', 'Error al enviar', e.message);
+  } finally {
+    setLoading('form', false);
+  }
+}
+
+async function sendJSON() {
+  const raw = document.getElementById('j-input').value.trim();
+  if (!raw) { setStatus('json', 'err', 'JSON vacío', 'Pega el JSON generado por Claude.'); return; }
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) { setStatus('json', 'err', 'JSON inválido', e.message); return; }
+  const tasks = Array.isArray(parsed) ? parsed : [parsed];
+  setLoading('json', true);
+  document.getElementById('status-json').className = 'status';
+  try {
+    let ok = 0, fail = 0;
+    for (const t of tasks) {
+      try { await post(t); ok++; }
+      catch(e) { fail++; console.error(t.title, e.message); }
+    }
+    if (fail === 0) {
+      setStatus('json', 'ok', `${ok} tarea${ok > 1 ? 's' : ''} enviada${ok > 1 ? 's' : ''}`, 'Todo entró correctamente a CAOS.');
+      document.getElementById('j-input').value = '';
+    } else {
+      setStatus('json', 'err', `${ok} enviadas, ${fail} fallaron`, 'Revisa la consola para ver cuáles fallaron.');
+    }
+  } finally {
+    setLoading('json', false);
+  }
+}
+
+// Set today as default date
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
