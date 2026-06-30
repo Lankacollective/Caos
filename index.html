@@ -390,6 +390,7 @@ body.deep-work .ct { justify-content: center; align-items: center; }
   </div>
   <div class="ns" style="margin-top:auto;">
     <div class="ni" onclick="openCap()" style="color:var(--or);" title="IA Captura"><i class="fa-solid fa-bolt"></i> <span class="ni-txt">IA Captura</span></div>
+
     <div class="ni" onclick="window.open('sender.html','_blank')" title="Sender JSON"><i class="fa-solid fa-paper-plane"></i> <span class="ni-txt">Sender</span></div>
     <div class="ni" onclick="openMo('mo-team')" title="Equipo"><i class="fa-solid fa-users"></i> <span class="ni-txt">Equipo</span></div>
     <div class="ni" onclick="expData()" title="Backup"><i class="fa-solid fa-download"></i> <span class="ni-txt">Backup</span></div>
@@ -419,6 +420,7 @@ body.deep-work .ct { justify-content: center; align-items: center; }
     <button class="fc" onclick="filt('alta',this)">Prioridad</button>
     <button class="fc" onclick="filt('hoy',this)">Hoy</button>
     <button class="fc" onclick="filt('bloqueadas',this)">Bloqueadas</button>
+    <button class="fc" onclick="filt('archivado',this)">Archivadas</button>
     <div class="sw"><i class="fa-solid fa-magnifying-glass"></i><input class="si" id="q" placeholder="Buscar..." oninput="searchUpd()"></div>
   </div>
   
@@ -595,12 +597,12 @@ function seedT(){ S.tasks=[]; }
 function render(){renderSb();renderC();updBadges();}
 function renderSb(){ document.getElementById('proj-list').innerHTML=S.projects.map(p=>'<div class="pi" onclick="filtP(\''+p.id+'\')"><div class="pd" style="background:'+p.col+'"></div><span class="ni-txt">'+p.name+'</span></div>').join(''); var ps=document.getElementById('t-proj'); if(ps) ps.innerHTML='<option value="">— Sin proyecto —</option>'+S.projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join(''); var as=document.getElementById('t-who'); if(as) as.innerHTML='<option value="">— Sin asignar —</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name+'</option>').join(''); var bbw=document.getElementById('bb-who'); if(bbw) bbw.innerHTML='<option value="">Asignar...</option>'+S.team.map(m=>'<option value="'+m.id+'">'+m.name.split(' ')[0]+'</option>').join(''); var bbp=document.getElementById('bb-proj'); if(bbp) bbp.innerHTML='<option value="">Asignar a proyecto...</option>'+S.projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join(''); }
 function renderC(){ var c=document.getElementById('main-ct'); if(S.view==='dashboard') dashV(c); else if(S.view==='tasks') tasksV(c); else if(S.view==='calendar') calV(c); else if(S.view==='inbox') inboxV(c); else if(S.view==='timer') timerV(c); else if(S.view==='agenda') agendaV(c); else if(S.view==='roadmap') roadmapV(c); else if(S.view==='protocolo') protocoloV(c); }
-function updBadges(){ var ib=S.tasks.filter(t=>t.st==='inbox').length; var bi=document.getElementById('b-inbox');if(ib){bi.innerText=ib;bi.style.display='';}else bi.style.display='none'; document.getElementById('b-tasks').innerText=S.tasks.filter(t=>t.st!=='listo').length; }
+function updBadges(){ var ib=S.tasks.filter(t=>t.st==='inbox').length; var bi=document.getElementById('b-inbox');if(ib){bi.innerText=ib;bi.style.display='';}else bi.style.display='none'; document.getElementById('b-tasks').innerText=S.tasks.filter(t=>t.st!=='listo'&&t.st!=='archivado').length; }
 
 window.saveFocus = function(val) { var today = new Date().toISOString().split('T')[0]; S.focus = { date: today, text: val.trim() }; persist(); toast('Foco guardado.'); }
 
 function dashV(c){
-  var all=S.tasks, today=new Date().toISOString().split('T')[0];
+  var all=S.tasks.filter(t=>t.st!=='archivado'), today=new Date().toISOString().split('T')[0];
   var quotes = [
     "No nos afecta lo que nos sucede, sino lo que nos decimos acerca de lo que nos sucede. — Epicteto", 
     "Te conviertes en lo que le das a tu atención. — Epicteto", 
@@ -748,7 +750,7 @@ function cardClick(e, id){ if(S.selMode){ e.stopPropagation(); var idx=S.selecte
 function togSelMode(){ S.selMode=!S.selMode; S.selected=[]; document.getElementById('btn-selmode').style.color=S.selMode?'var(--or)':''; renderC(); updBatch(); }
 function updBatch(){ var b=document.getElementById('batch-bar'); if(S.selected.length>0){ b.classList.add('show'); document.getElementById('bb-num').innerText=S.selected.length; } else { b.classList.remove('show'); document.getElementById('bb-st').value=''; document.getElementById('bb-who').value=''; document.getElementById('bb-proj').value=''; } }
 function clearSel(){ S.selected=[]; updBatch(); renderC(); }
-function bAct(type,val){ if(!val)return; if(type==='del'){if(!confirm('¿Eliminar?'))return; S.tasks=S.tasks.filter(t=>!S.selected.includes(t.id));} else if(type==='st') S.selected.forEach(id=>chgSt(id,val,true)); else if(type==='who') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.who=val;}); else if(type==='proj') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.proj=val;}); persist(); clearSel(); render(); toast('Lote actualizado.'); }
+function bAct(type,val){ if(!val)return; if(type==='del'){if(!confirm('¿Archivar seleccionadas?'))return; S.selected.forEach(id=>{var tk=S.tasks.find(x=>x.id===id);if(tk){tk.st='archivado';tk.updatedAt=new Date().toISOString();}});} else if(type==='st') S.selected.forEach(id=>chgSt(id,val,true)); else if(type==='who') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.who=val;}); else if(type==='proj') S.selected.forEach(id=>{var t=S.tasks.find(x=>x.id===id);if(t)t.proj=val;}); persist(); clearSel(); render(); toast('Lote actualizado.'); }
 
 function trow(t){
   var proj=S.projects.find(p=>p.id===t.proj),mbr=S.team.find(m=>m.id===t.who); var today=new Date().toISOString().split('T')[0],ov=t.date&&t.date<today&&t.st!=='listo';
@@ -776,7 +778,7 @@ function tasksV(c){
 }
 
 function getF(){
-  var t=S.tasks.slice(); if(S.proj) t=t.filter(x=>x.proj===S.proj); if(S.filt==='alta') t=t.filter(x=>x.pri==='alta'); else if(S.filt==='hoy') t=t.filter(x=>x.date===new Date().toISOString().split('T')[0]); else if(S.filt==='inbox') t=t.filter(x=>x.st==='inbox'); else if(S.filt==='bloqueadas') t=t.filter(x=>x.st==='bloqueado');
+  var t=S.tasks.filter(x=>x.st!=='archivado'); if(S.proj) t=t.filter(x=>x.proj===S.proj); if(S.filt==='alta') t=t.filter(x=>x.pri==='alta'); else if(S.filt==='hoy') t=t.filter(x=>x.date===new Date().toISOString().split('T')[0]); else if(S.filt==='inbox') t=t.filter(x=>x.st==='inbox'); else if(S.filt==='bloqueadas') t=t.filter(x=>x.st==='bloqueado'); else if(S.filt==='archivado') t=S.tasks.filter(x=>x.st==='archivado');
   var q=document.getElementById('q'); 
   if(q&&q.value){ 
     var qv=q.value.toLowerCase(); 
@@ -861,7 +863,7 @@ function openDp(id){
   b+='<div class="ds"><div class="dst">CAMBIAR ESTADO</div><div style="display:flex;gap:8px;flex-wrap:wrap;">'; ['inbox','pendiente','proceso','revision','listo','bloqueado'].forEach(st=>{b+=`<button class="btn" onclick="chgSt('${id}','${st}')" style="border-color:${t.st===st?'var(--or)':'var(--border)'};color:${t.st===st?'var(--or)':'var(--text-mut)'};font-size:10px;">${st.toUpperCase()}</button>`;}); b+='</div></div>';
   var el=S.timers[id]||0,ia=S.activeT===id; b+=`<div class="ds"><div class="dst">TIME TRACKER</div><div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg-card);border:1px solid ${ia?'var(--or)':'var(--border)'};border-radius:4px;"><div id="dp-tim-clk" style="font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:${ia?'var(--or)':'var(--text-main)'};">${fmtTim(el)}</div><div style="flex:1;font-size:11px;color:var(--text-mut);">${ia?'Trackeando...':'Acumulado'}</div>${ia?`<button class="btn" style="background:var(--re);color:#fff;border:none;padding:4px 12px;" onclick="stopTim()">STOP</button>`:`<button class="btn btn-g" style="padding:4px 12px;" onclick="startTim('${id}')">START</button>`}</div></div>`;
   if(mbr&&(mbr.wa||mbr.em)){b+='<div class="ds"><div class="dst">CONTACTAR</div><div class="ca">';if(mbr.wa)b+=`<button class="cb cb-w" onclick="sendW('${id}')"><i class="fa-brands fa-whatsapp"></i> WA</button>`;if(mbr.em)b+=`<button class="cb cb-e" onclick="sendE('${id}')"><i class="fa-regular fa-envelope"></i> EMAIL</button>`;b+='</div></div>';}
-  b+=`<div style="display:flex;gap:12px;margin-top:12px;padding-top:24px;border-top:1px solid var(--border);"><button class="btn btn-g" style="flex:1; justify-content:center;" onclick="editT('${id}')">Editar</button><button class="btn btn-g" style="flex:0.5; justify-content:center;" onclick="dupT('${id}')" title="Duplicar"><i class="fa-solid fa-copy"></i></button><button class="btn" style="color:var(--re);border-color:rgba(255,90,54,0.3);" onclick="delT('${id}')"><i class="fa-solid fa-trash"></i></button></div>`;
+  b+=`<div style="display:flex;gap:12px;margin-top:12px;padding-top:24px;border-top:1px solid var(--border);">`+(t.st!=='archivado'?`<button class="btn btn-g" style="flex:1; justify-content:center;" onclick="editT('${id}')">Editar</button><button class="btn btn-g" style="flex:0.5; justify-content:center;" onclick="dupT('${id}')" title="Duplicar"><i class="fa-solid fa-copy"></i></button><button class="btn" style="color:var(--re);border-color:rgba(255,90,54,0.3);" onclick="delT('${id}')" title="Archivar"><i class="fa-solid fa-box-archive"></i></button>`:`<button class="btn btn-g" style="flex:1;justify-content:center;" onclick="restoreT('${id}')"><i class="fa-solid fa-rotate-left"></i> Restaurar</button>`)+`</div>`;
   document.getElementById('dp-body').innerHTML=b; document.getElementById('dp').classList.add('open');
 }
 function closeDp(){document.getElementById('dp').classList.remove('open');}
@@ -869,7 +871,8 @@ function closeDp(){document.getElementById('dp').classList.remove('open');}
 function openNew(preset){S.editId=null;S.tmpSubs=[];S.tmpAtts=[];['t-title','t-desc','t-notes','t-recur','t-time','t-alert'].forEach(i=>document.getElementById(i).value='');document.getElementById('t-date').value='';document.getElementById('t-pri').value='media';document.getElementById('t-st').value=preset||'pendiente';var ps=document.getElementById('t-proj');if(S.proj&&ps) ps.value=S.proj; else if(ps) ps.value='';document.getElementById('sub-list').innerHTML='';document.getElementById('att-list').innerHTML='';document.getElementById('mo-t-lbl').innerText='NUEVA TAREA';openMo('mo-task'); setTimeout(()=>document.getElementById('t-title').focus(), 50);}
 function editT(id){var t=S.tasks.find(x=>x.id===id);if(!t) return;S.editId=id;S.tmpSubs=(t.subs||[]).slice();S.tmpAtts=(t.atts||[]).slice();document.getElementById('t-title').value=t.title;document.getElementById('t-desc').value=t.desc||'';document.getElementById('t-proj').value=t.proj||'';document.getElementById('t-st').value=t.st;document.getElementById('t-pri').value=t.pri;document.getElementById('t-who').value=t.who||'';document.getElementById('t-date').value=t.date||'';document.getElementById('t-time').value=t.time||'';document.getElementById('t-notes').value=t.notes||'';document.getElementById('t-recur').value=t.recur||'';document.getElementById('t-alert').value=t.alert||'';renderSubs();renderAtts();closeDp();document.getElementById('mo-t-lbl').innerText='EDITAR TAREA';openMo('mo-task');}
 function saveTask(){ var t=document.getElementById('t-title').value.trim(); if(!t){toast('Título obligatorio.');return;} var task={id:S.editId||('t'+Date.now()),title:t,desc:document.getElementById('t-desc').value.trim(),proj:document.getElementById('t-proj').value,st:document.getElementById('t-st').value,pri:document.getElementById('t-pri').value,who:document.getElementById('t-who').value,date:document.getElementById('t-date').value,time:document.getElementById('t-time').value,recur:document.getElementById('t-recur').value,subs:S.tmpSubs.slice(),atts:S.tmpAtts.slice(),notes:document.getElementById('t-notes').value.trim(),alert:document.getElementById('t-alert').value,ca:new Date().toISOString(),alerted:false}; if(S.editId){var i=S.tasks.findIndex(x=>x.id===S.editId); if(i!==-1) { task.alerted = (S.tasks[i].date === task.date && S.tasks[i].time === task.time && S.tasks[i].alert === task.alert) ? S.tasks[i].alerted : false; S.tasks[i]=task; } }else{ S.tasks.push(task); } persist(); closeMo('mo-task'); render(); if(document.getElementById('dp').classList.contains('open') && S.editId){ openDp(S.editId); } toast('Guardado.');}
-function delT(id){if(!confirm('¿Eliminar?')) return;S.tasks=S.tasks.filter(x=>x.id!==id);persist();closeDp();render();toast('Eliminada.');}
+function delT(id){if(!confirm('¿Archivar tarea?')) return; var t=S.tasks.find(x=>x.id===id); if(t){t.st='archivado';t.updatedAt=new Date().toISOString();} persist();closeDp();render();toast('Archivada.');}
+function restoreT(id){ var t=S.tasks.find(x=>x.id===id); if(t){t.st='inbox';t.updatedAt=new Date().toISOString();} persist();closeDp();render();toast('Restaurada a Inbox.'); }
 function togSub(tid,sid){var t=S.tasks.find(x=>x.id===tid);if(!t) return;var s=t.subs.find(x=>x.id===sid);if(s){s.d=!s.d;persist();render();openDp(tid);}}
 function addSub(){var i=document.getElementById('sub-inp'),t=i.value.trim();if(!t) return;S.tmpSubs.push({id:'s'+Date.now(),t:t,d:false});i.value='';renderSubs();}
 function renderSubs(){var e=document.getElementById('sub-list');if(e)e.innerHTML=S.tmpSubs.map((s,i)=>`<div class="cli"><span style="flex:1;">${s.t}</span><i class="fa-solid fa-xmark" style="cursor:pointer;color:var(--text-mut);" onclick="S.tmpSubs.splice(${i},1);renderSubs();"></i></div>`).join('');}
